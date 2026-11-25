@@ -39,6 +39,13 @@ h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
 .seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 4px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500; }
 .seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
 .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+.timebar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+.tb-label { font-weight: 600; font-size: 13px; }
+.fld { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.fld select { height: 32px; border: 1px solid var(--line); border-radius: 6px; padding: 0 28px 0 9px; background: var(--card); color: var(--ink); font: inherit; font-size: 13px; max-width: 220px; }
+.fld select.on { border-color: var(--amazon); background: var(--sel); }
+.filters { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.linkbtn { border: 0; background: none; color: var(--amazon); cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; padding: 4px 0; }
 
 .table { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .scroll { overflow-x: auto; }
@@ -157,6 +164,14 @@ details.how summary { cursor: pointer; }
   </header>
   <p class="msg" id="msg" hidden></p>
 
+  <section class="timebar" id="timebar" aria-label="Time range">
+    <span class="tb-label">Time range</span>
+    <label class="fld">From <select id="tl-from"></select></label>
+    <label class="fld">To <select id="tl-to"></select></label>
+    <div class="seg" id="tl-presets" role="group" aria-label="Quick time ranges"></div>
+    <span class="small" id="tl-note"></span>
+  </section>
+
   <section class="summary" id="summary" aria-label="Key numbers"></section>
 
   <nav class="tabs" aria-label="Pages">
@@ -169,6 +184,14 @@ details.how summary { cursor: pointer; }
     <input class="search" id="search" type="search" placeholder="Search product, SKU, brand or category" aria-label="Search">
     <div class="seg" id="seg" role="group" aria-label="Which SKUs"></div>
     <span class="hint">Click a row to see its price at every crawl.</span>
+  </div>
+  <div class="filters" id="filters" role="group" aria-label="Filter SKUs">
+    <label class="fld">Dropped first <select id="f-first"></select></label>
+    <label class="fld">Other platform <select id="f-other"></select></label>
+    <label class="fld">Price after the drop <select id="f-rec"></select></label>
+    <label class="fld">Drop size <select id="f-size"></select></label>
+    <label class="fld">Brand <select id="f-brand"></select></label>
+    <button class="linkbtn" id="f-clear" type="button" hidden>Clear filters</button>
   </div>
 
   <div class="table">
@@ -208,6 +231,8 @@ details.how summary { cursor: pointer; }
       <li><b>Recovered</b>: the platform’s price went back up to (or above) what it was before its drop. The time shown is the crawl where that was first seen.</li>
       <li><b>2nd, 3rd drop</b>: once a price has recovered, the next drop on that platform starts a new drop, with its own recovery check. Further cuts before the price recovers count as part of the same drop.</li>
       <li>When stock_status is out_of_stock (or the price is 0), that crawl is treated as out of stock: its price is ignored and never counted as a drop or a recovery. Prices are compared with the last in-stock price. Only selling_price is used; lowest_selling_price is ignored. Times are crawl times, so the real change happened some time in the 10 minutes before.</li>
+      <li><b>Time range</b>: everything is worked out again using only the crawls in the chosen range, so a drop is “first” within that range, and recovery is checked only up to its last crawl.</li>
+      <li><b>Filters</b> on the SKU page narrow the list; the number next to each option is how many SKUs it would leave, given the other filters.</li>
       <li><b>Categories</b>: Amazon and Flipkart name their categories differently, so pick whose names to use. A SKU not categorised on that platform uses the other platform’s category. Category columns (primary_category_name, test_sub_category_1–4) are optional; “-” counts as empty.</li>
       <li>SKUs are matched across platforms by internal_company_sku. A CSV needs crawl_timestamp, site_name, selling_price and internal_company_sku (or product_name). Loaded files stay in your browser.</li>
     </ul>
@@ -2818,7 +2843,7 @@ const Engine = (() => {
 (() => {
   const $ = (id) => document.getElementById(id);
   const STORE = 'drop-tracker-csv-v1';
-  const S = { file: null, index: null, recs: [], show: 'drops', q: '', tax: null, cat: [], open: null, page: 0, size: 50, original: null, sum: {} };
+  const S = { file: null, index: null, recs: [], show: 'drops', q: '', tax: null, cat: [], range: null, f: { first: '', other: '', rec: '', size: '', brand: '' }, open: null, page: 0, size: 50, original: null, sum: {} };
 
   const inrF = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 });
   const inr = (v) => (v == null ? '—' : inrF.format(v));
@@ -2884,6 +2909,85 @@ const Engine = (() => {
     return rec;
   }
 
+  function analyzeRange() {
+    const opts = { fromRi: S.range[0], toRi: S.range[1], sites: new Set(S.index.sites), threshold: 0 };
+    S.recs = Engine.analyze(S.index, opts).map(enrich);
+  }
+  const rangeRis = () => { const a = []; for (let i = S.range[0]; i <= S.range[1]; i++) a.push(i); return a; };
+  function setRange(from, to) {
+    if (from > to) [from, to] = [to, from];
+    S.range = [from, to]; S.open = null; S.page = 0;
+    analyzeRange(); render();
+  }
+  function renderTimebar() {
+    const runs = S.index.runs, last = runs.length - 1;
+    const opt = (i) => el('option', { value: String(i), text: time(runs[i]) });
+    $('tl-from').replaceChildren(...runs.map((_, i) => opt(i))); $('tl-from').value = String(S.range[0]);
+    $('tl-to').replaceChildren(...runs.map((_, i) => opt(i))); $('tl-to').value = String(S.range[1]);
+    const span = runs[last] - runs[0];
+    const presets = [['All crawls', 0]];
+    for (const [l, ms] of [['Last 30 min', 18e5], ['Last hour', 36e5], ['Last 3 hours', 108e5], ['Last 24 hours', 864e5], ['Last 7 days', 6048e5]]) if (span > ms) presets.push([l, ms]);
+    const startFor = (ms) => (ms ? Math.max(0, runs.findIndex((t) => t >= runs[last] - ms)) : 0);
+    $('tl-presets').replaceChildren(...presets.map(([l, ms]) => {
+      const st = startFor(ms);
+      const b = el('button', { type: 'button', 'aria-pressed': String(S.range[0] === st && S.range[1] === last) }, l);
+      b.addEventListener('click', () => setRange(st, last));
+      return b;
+    }));
+    const n = S.range[1] - S.range[0] + 1;
+    $('tl-note').textContent = n + ' of ' + runs.length + ' crawls' + (n < 2 ? ' · pick at least two crawls to compare prices' : '');
+  }
+
+  /* ---------- filters ---------- */
+  function filterOptions() {
+    const sites = S.index.sites;
+    return {
+      first: [['', 'Any platform'], ...sites.map((x) => [x, x]), ['same', 'Same time (both)']],
+      other: [['', 'Any outcome'], ['Followed', 'Followed the drop'], ['No response', 'Didn’t follow'], ['Inconclusive', 'Unclear (missing crawl)'], ['No data after drop', 'No later crawl'], ['single', 'Only on one platform']],
+      rec: [['', 'Any'], ['back', 'Came back up'], ['still', 'Still lower at last crawl'], ['again', 'Dropped again (2+ drops)'], ['once', 'Dropped only once']],
+      size: [['', 'Any size'], ['1', '1% or more'], ['5', '5% or more'], ['10', '10% or more'], ['25', '25% or more']],
+      brand: [['', 'All brands'], ...[...new Set(S.recs.map((r) => r.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b)).map((b) => [b, b])]
+    };
+  }
+  function matchFilters(r, skip) {
+    const f = S.f;
+    if (f.brand && skip !== 'brand' && r.brand !== f.brand) return false;
+    if (f.first && skip !== 'first') { if (r.firstRi == null) return false; if (f.first === 'same' ? !r.simultaneous : (r.simultaneous || r.leader !== f.first)) return false; }
+    if (f.other && skip !== 'other') {
+      if (r.firstRi == null) return false;
+      if (f.other === 'single') { if (r.status !== 'Single platform') return false; }
+      else if (!r.rivals.some((v) => v.status === f.other)) return false;
+    }
+    if (f.rec && skip !== 'rec') {
+      if (r.firstRi == null) return false;
+      const firsts = r.droppers.filter((d) => d.role !== 'follow');
+      if (f.rec === 'back' && !firsts.some((d) => d.rec.kind === 'back')) return false;
+      if (f.rec === 'still' && !firsts.some((d) => d.rec.kind === 'still')) return false;
+      if (f.rec === 'again' && !r.repeatDrops) return false;
+      if (f.rec === 'once' && r.repeatDrops) return false;
+    }
+    if (f.size && skip !== 'size') { if (r.firstRi == null || -r.leadEvent.pct < +f.size) return false; }
+    return true;
+  }
+  const anyFilter = () => Object.values(S.f).some(Boolean);
+  function renderFilters() {
+    const o = filterOptions();
+    const base = scoped();
+    for (const k of Object.keys(o)) {
+      const sel = $('f-' + k);
+      if (!o[k].some(([v]) => v === S.f[k])) S.f[k] = '';
+      /* count each option given the other filters, so people can see what a choice leaves */
+      const pool = base.filter((r) => matchFilters(r, k));
+      sel.replaceChildren(...o[k].map(([v, l]) => {
+        const n = v ? pool.filter((r) => { const keep = S.f[k]; S.f[k] = v; const ok = matchFilters(r); S.f[k] = keep; return ok; }).length : null;
+        return el('option', { value: v, text: l + (n != null ? ' (' + n + ')' : ''), disabled: n === 0 && S.f[k] !== v ? '' : null });
+      }));
+      sel.value = S.f[k];
+      sel.classList.toggle('on', !!S.f[k]);
+    }
+    $('f-clear').hidden = !anyFilter();
+  }
+
   /* ---------- loading ---------- */
   function load(text, name, isOriginal) {
     if (typeof Papa === 'undefined') { $('msg').textContent = 'Couldn’t load the CSV reader from cdnjs.cloudflare.com. Check your internet connection and reload the page.'; $('msg').hidden = false; return false; }
@@ -2894,8 +2998,9 @@ const Engine = (() => {
       if (!fields.length || v.missing.length) throw new Error(!fields.length ? 'The file has no header row.' : 'It’s missing ' + v.missing.join(', ') + '. Columns found: ' + fields.join(', ') + '.');
       const norm = Engine.normalize(p.data, fields);
       S.index = Engine.buildIndex(norm.rows, 10);
-      const opts = { fromRi: 0, toRi: S.index.runs.length - 1, sites: new Set(S.index.sites), threshold: 0 };
-      S.recs = Engine.analyze(S.index, opts).map(enrich);
+      S.range = [0, S.index.runs.length - 1];
+      S.f = { first: '', other: '', rec: '', size: '', brand: '' };
+      analyzeRange();
       S.file = { name, isOriginal, rows: norm.stats.used };
       S.open = null; S.page = 0;
       $('msg').hidden = true;
@@ -2921,7 +3026,10 @@ const Engine = (() => {
     const runs = S.index.runs;
     $('file-name').textContent = (S.file.isOriginal ? 'Original data: ' : 'Your file: ') + S.file.name + ' · ' + S.file.rows.toLocaleString('en-IN') + ' rows';
     $('reset').hidden = S.file.isOriginal;
-    $('sub').textContent = S.recs.length + ' SKUs on ' + S.index.sites.join(' and ') + ', crawled ' + runs.length + ' times from ' + time(runs[0]) + ' to ' + time(runs[runs.length - 1]) + '.';
+    const full = S.range[0] === 0 && S.range[1] === runs.length - 1;
+    $('sub').textContent = S.recs.length + ' SKUs on ' + S.index.sites.join(' and ') + ', crawled ' + runs.length + ' times from ' + time(runs[0]) + ' to ' + time(runs[runs.length - 1]) + '.'
+      + (full ? '' : ' Showing ' + time(runs[S.range[0]]) + ' to ' + time(runs[S.range[1]]) + '.');
+    renderTimebar();
     const withCats = S.index.sites.filter((x) => S.recs.some((r) => r.cats[x]));
     S.hasCats = withCats.length > 0;
     if (!withCats.includes(S.tax)) { S.tax = withCats[0] || null; S.cat = []; }
@@ -2934,7 +3042,7 @@ const Engine = (() => {
   const inCat = (r, path) => { if (!path.length) return true; const c = catOf(r); return !!c && path.every((x, i) => c[i] === x); };
   const scoped = () => S.recs.filter((r) => inCat(r, S.cat));
   function setCat(path) { S.cat = path; S.page = 0; S.open = null; renderAll(); }
-  function renderAll() { renderSummary(); renderCats(); renderSeg(); renderRows(); }
+  function renderAll() { renderSummary(); renderCats(); renderFilters(); renderSeg(); renderRows(); }
   function goToSkus() { S.show = scoped().some((r) => r.firstRi != null) ? 'drops' : 'all'; S.page = 0; renderSeg(); renderRows(); location.hash = '#skus'; scrollTo({ top: 0 }); }
 
   function catStats(list) {
@@ -3080,7 +3188,7 @@ const Engine = (() => {
   }
 
   function renderSeg() {
-    const pool = scoped();
+    const pool = scoped().filter((r) => matchFilters(r));
     const nDrop = pool.filter((r) => r.firstRi != null).length;
     const opts = [['drops', 'SKUs with a drop', nDrop], ['all', 'All SKUs', pool.length]];
     const btns = opts.map(([k, l, c]) => {
@@ -3101,7 +3209,7 @@ const Engine = (() => {
 
   function visible() {
     const terms = S.q.toLowerCase().split(/\s+/).filter(Boolean);
-    return S.recs.filter((r) => inCat(r, S.cat) && (S.show === 'all' || r.firstRi != null) && (!terms.length || terms.every((t) => (r.product + ' ' + r.sku + ' ' + r.brand + ' ' + Object.values(r.cats).flat().join(' ')).toLowerCase().includes(t))))
+    return S.recs.filter((r) => inCat(r, S.cat) && matchFilters(r) && (S.show === 'all' || r.firstRi != null) && (!terms.length || terms.every((t) => (r.product + ' ' + r.sku + ' ' + r.brand + ' ' + Object.values(r.cats).flat().join(' ')).toLowerCase().includes(t))))
       .sort((a, b) => (a.firstRi == null) - (b.firstRi == null) || (a.leadEvent && b.leadEvent ? a.leadEvent.ts - b.leadEvent.ts : a.product.localeCompare(b.product)));
   }
 
@@ -3160,7 +3268,7 @@ const Engine = (() => {
 
   function detailRow(r) {
     const runs = S.index.runs;
-    const ris = []; for (let i = 0; i < runs.length; i++) ris.push(i);
+    const ris = rangeRis();
     const marks = new Map();
     for (const [site, eps] of r.episodes) {
       const d = r.droppers.find((x) => x.site === site);
@@ -3211,7 +3319,7 @@ const Engine = (() => {
       out.push(tr);
       if (S.open === r.sku) out.push(detailRow(r));
     }
-    $('body').replaceChildren(...(out.length ? out : [el('tr', null, el('td', { class: 'empty', colspan: '4', text: S.q ? 'No SKUs match “' + S.q + '”.' : S.cat.length ? 'No price drops in ' + S.cat[S.cat.length - 1] + '. Choose All SKUs to see the rest.' : 'No price drops in this data.' }))]));
+    $('body').replaceChildren(...(out.length ? out : [el('tr', null, el('td', { class: 'empty', colspan: '4', text: S.q ? 'No SKUs match “' + S.q + '”.' : anyFilter() ? 'No SKUs match these filters.' : S.cat.length ? 'No price drops in ' + S.cat[S.cat.length - 1] + '. Choose All SKUs to see the rest.' : 'No price drops in this data.' }))]));
     if (S.chart) { S.chart.destroy(); S.chart = null; }
     const openRec = S.open && slice.find((r) => r.sku === S.open);
     if (openRec) drawChart(openRec);
@@ -3236,10 +3344,11 @@ const Engine = (() => {
     }
     const datasets = r.listed.map((s) => {
       const d = r.perSite.get(s); const at = new Map(d.obs.map((o) => [o.ri, o]));
-      const data = runs.map((_, i) => { const o = at.get(i); return o && o.price != null ? o.price : null; });
-      const tags = runs.map((_, i) => marks.get(s + '|' + i) || null);
-      const ts = runs.map((_, i) => { const o = at.get(i); return o ? o.ts : null; });
-      const oos = runs.map((_, i) => { const o = at.get(i); return !!o && o.price == null; });
+      const rr = rangeRis();
+      const data = rr.map((i) => { const o = at.get(i); return o && o.price != null ? o.price : null; });
+      const tags = rr.map((i) => marks.get(s + '|' + i) || null);
+      const ts = rr.map((i) => { const o = at.get(i); return o ? o.ts : null; });
+      const oos = rr.map((i) => { const o = at.get(i); return !!o && o.price == null; });
       const c = col(s);
       return {
         label: s, data, _tags: tags, _ts: ts, _oos: oos,
@@ -3281,7 +3390,7 @@ const Engine = (() => {
     S.chart = new Chart(canvas, {
       plugins: [oosBand],
       type: 'line',
-      data: { labels: runs.map((t) => time(t)), datasets },
+      data: { labels: rangeRis().map((i) => time(runs[i])), datasets },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
         interaction: { mode: 'index', intersect: false },
@@ -3308,6 +3417,14 @@ const Engine = (() => {
 
   /* ---------- controls ---------- */
   $('cat-go').addEventListener('click', goToSkus);
+  $('tl-from').addEventListener('change', (e) => setRange(+e.target.value, S.range[1]));
+  $('tl-to').addEventListener('change', (e) => setRange(S.range[0], +e.target.value));
+  for (const k of ['first', 'other', 'rec', 'size', 'brand']) $('f-' + k).addEventListener('change', (e) => {
+    S.f[k] = e.target.value; S.page = 0; S.open = null;
+    if (S.f[k] && k !== 'brand') S.show = 'drops';
+    renderFilters(); renderSeg(); renderRows();
+  });
+  $('f-clear').addEventListener('click', () => { S.f = { first: '', other: '', rec: '', size: '', brand: '' }; S.page = 0; renderFilters(); renderSeg(); renderRows(); });
   $('load').addEventListener('click', () => $('file').click());
   $('file').addEventListener('change', (e) => { readFile(e.target.files[0]); e.target.value = ''; });
   $('reset').addEventListener('click', () => load(S.original.text, S.original.name, true));
