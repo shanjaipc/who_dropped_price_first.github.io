@@ -79,6 +79,13 @@ table.main { table-layout: fixed; min-width: 780px; }
 .t-still { background: var(--down-bg); color: var(--down); }
 .card.wide { grid-column: 1 / -1; }
 .cat-go { margin: 4px 0 8px; }
+.rs-controls { display: flex; gap: 10px 24px; flex-wrap: wrap; margin-bottom: 14px; }
+.rs-kpis { margin-bottom: 14px; }
+.rs-advice p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; }
+.rs-advice .big { font-size: 15px; font-weight: 600; color: var(--ink); }
+.rs-list-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 4px; }
+.rs-list-head h2 { font-size: 15px; margin: 0; }
+.rs-table td { vertical-align: top; }
 #page-cats .cat-head { margin-bottom: 14px; }
 .cat-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .cat-head h2 { font-size: 15px; margin: 0 0 2px; }
@@ -130,7 +137,8 @@ table.pg td:first-child .tl { white-space: normal; }
 .headline { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-bottom: 14px; font-size: 15px; }
 .headline p { margin: 0; }
 .headline p + p { margin-top: 6px; color: var(--muted); font-size: 13px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 14px; margin-bottom: 14px; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+@media (max-width: 900px) { .cards { grid-template-columns: 1fr; } }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
 .card h2 { font-size: 14px; margin: 0 0 2px; }
 .card .cap { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
@@ -183,6 +191,8 @@ details.how summary { cursor: pointer; }
   <nav class="tabs" aria-label="Pages">
     <a href="#skus" id="tab-skus" aria-current="page">SKU details</a>
     <a href="#categories" id="tab-cats">Categories</a>
+    <a href="#brands" id="tab-brands">Brands</a>
+    <a href="#response" id="tab-resp">Response time</a>
   </nav>
 
   <div id="page-skus">
@@ -222,12 +232,50 @@ details.how summary { cursor: pointer; }
       </div>
     </div>
     <div class="cards" id="cat-cards">
-      <div class="card wide"><h2>Who dropped price first</h2><p class="cap">SKUs in each category, by the platform that cut first. Click a bar to open that category.</p><div class="chart-box" id="box-first"><canvas id="ch-cat-first" role="img" aria-label="SKUs by who dropped first, per category"></canvas></div></div>
-      <div class="card"><h2>Drops and recoveries</h2><p class="cap">Every price drop on either platform, and how many came back up</p><div class="chart-box" id="box-rec"><canvas id="ch-cat-rec" role="img" aria-label="Price drops and recoveries per category"></canvas></div></div>
-      <div class="card"><h2>Where the drops happened</h2><p class="cap">Share of all price drops in this view</p><div class="chart-box" id="box-share"><canvas id="ch-cat-share" role="img" aria-label="Share of price drops by category"></canvas></div></div>
+      <div class="card wide"><h2>Who dropped price first</h2><p class="cap">SKUs in each category, by the platform that cut first. Click a bar to open that category.</p><div class="chart-box" id="box-cat-first"><canvas id="ch-cat-first" role="img" aria-label="SKUs by who dropped first, per category"></canvas></div></div>
+      <div class="card"><h2>Drops and recoveries</h2><p class="cap">Every price drop on either platform, and how many came back up</p><div class="chart-box" id="box-cat-rec"><canvas id="ch-cat-rec" role="img" aria-label="Price drops and recoveries per category"></canvas></div></div>
+      <div class="card"><h2>Where the drops happened</h2><p class="cap">Share of all price drops in this view</p><div class="chart-box" id="box-cat-share"><canvas id="ch-cat-share" role="img" aria-label="Share of price drops by category"></canvas></div></div>
     </div>
     <p class="empty" id="cat-empty" hidden></p>
     <div class="cat-go"><button class="btn dark" id="cat-go" type="button"></button></div>
+  </div>
+
+  <div id="page-resp" hidden>
+    <div class="cat-head">
+      <div><h2>How fast does the other platform react?</h2><p class="cap" id="rs-cap"></p></div>
+    </div>
+    <div class="rs-controls">
+      <label class="fld">Compare with <span class="seg" id="rs-match" role="group" aria-label="Which products to compare"></span></label>
+      <label class="fld">Count as a reaction <span class="seg" id="rs-kind" role="group" aria-label="What counts as a reaction"></span></label>
+    </div>
+    <section class="summary rs-kpis" id="rs-kpis" aria-label="Reaction time numbers"></section>
+    <div class="cards">
+      <div class="card wide"><h2>Time until the other platform changed its price</h2><p class="cap" id="rs-bucket-cap">Each price drop, grouped by how long the other platform took to change its price. Click a bar to list those drops.</p><div class="chart-box" id="box-rs-bucket" style="height:320px"><canvas id="ch-rs-bucket" role="img" aria-label="Price drops grouped by reaction time"></canvas></div></div>
+      <div class="card"><h2>Share that had reacted, over time</h2><p class="cap">Of all drops, the share where the other platform had changed its price by each point after the drop</p><div class="chart-box" style="height:300px"><canvas id="ch-rs-cum" role="img" aria-label="Cumulative share of drops with a reaction"></canvas></div></div>
+      <div class="card rs-advice"><h2>What this means for crawl frequency</h2><div id="rs-advice"></div></div>
+    </div>
+    <div class="table">
+      <div class="rs-list-head"><h2 id="rs-list-title">Every drop and the reaction</h2><button class="linkbtn" id="rs-list-clear" type="button" hidden>Show all</button></div>
+      <div class="scroll"><table class="main rs-table">
+        <colgroup><col style="width:30%"><col style="width:22%"><col style="width:30%"><col style="width:18%"></colgroup>
+        <thead><tr><th>Product</th><th>Price drop</th><th>Other platform’s reaction</th><th>Time taken</th></tr></thead>
+        <tbody id="rs-body"></tbody>
+      </table></div>
+      <div class="pager" id="rs-more-wrap" hidden><span id="rs-count"></span><button class="btn" id="rs-more" type="button">Show more</button></div>
+    </div>
+  </div>
+
+  <div id="page-brands" hidden>
+    <div class="cat-head">
+      <div><h2 id="br-title">Brands</h2><p class="cap" id="br-cap"></p></div>
+      <div class="cat-controls"><div class="seg" id="br-seg" role="group" aria-label="Which brands"></div></div>
+    </div>
+    <div class="cards" id="br-cards">
+      <div class="card wide"><h2>Who dropped price first</h2><p class="cap">SKUs of each brand, by the platform that cut first. Click a bar to see that brand’s SKUs.</p><div class="chart-box" id="box-br-first"><canvas id="ch-br-first" role="img" aria-label="SKUs by who dropped first, per brand"></canvas></div></div>
+      <div class="card"><h2>Drops and recoveries</h2><p class="cap">Every price drop on either platform, and how many came back up</p><div class="chart-box" id="box-br-rec"><canvas id="ch-br-rec" role="img" aria-label="Price drops and recoveries per brand"></canvas></div></div>
+      <div class="card"><h2>Where the drops happened</h2><p class="cap">Share of all price drops in this view</p><div class="chart-box" id="box-br-share"><canvas id="ch-br-share" role="img" aria-label="Share of price drops by brand"></canvas></div></div>
+    </div>
+    <p class="empty" id="br-empty" hidden></p>
   </div>
 
   <details class="how">
@@ -238,10 +286,12 @@ details.how summary { cursor: pointer; }
       <li><b>Recovered</b>: the platform’s price went back up to (or above) what it was before its drop. The time shown is the crawl where that was first seen.</li>
       <li><b>2nd, 3rd drop</b>: once a price has recovered, the next drop on that platform starts a new drop, with its own recovery check. Further cuts before the price recovers count as part of the same drop.</li>
       <li>When stock_status is out_of_stock (or the price is 0), that crawl is treated as out of stock: its price is ignored and never counted as a drop or a recovery. Prices are compared with the last in-stock price. Only selling_price is used; lowest_selling_price is ignored. Times are crawl times, so the real change happened some time in the 10 minutes before.</li>
+      <li><b>Response time</b>: for each price drop on one platform (a fresh drop, not a further cut before the price recovered), the time until the other platform next changed its price, for the same SKU or, if chosen, any product in the same sub-category. It’s measured between crawls, so the real reaction happened somewhere between the previous crawl and the one shown. “Same crawl” means both prices changed between the same two crawls, so we can’t tell which came first. Drops where the other platform wasn’t crawled again with a price are left out.</li>
       <li><b>Time range</b>: everything is worked out again using only the crawls in the chosen range, so a drop is “first” within that range, and recovery is checked only up to its last crawl.</li>
       <li><b>Filters</b> on the SKU page narrow the list; the number next to each option is how many SKUs it would leave, given the other filters.</li>
-      <li><b>Categories</b>: Amazon and Flipkart name their categories differently, so pick whose names to use. A SKU not categorised on that platform uses the other platform’s category. Category columns (primary_category_name, test_sub_category_1–4) are optional; “-” counts as empty.</li>
-      <li>SKUs are matched across platforms by internal_company_sku. A CSV needs crawl_timestamp, site_name, selling_price and internal_company_sku (or product_name). Loaded files stay in your browser.</li>
+      <li><b>Categories</b>: amazon.in and flipkart.com name their categories differently, so pick whose names to use. A SKU not categorised on that platform uses the other platform’s category. Category columns (primary_category_name, test_sub_category_1–4) are optional; “-” counts as empty.</li>
+      <li><b>Platforms</b> are shown by domain, taken from each row’s product_url (www. is dropped, so https://www.amazon.in/… becomes amazon.in). If a row has no usable URL, the domain is worked out from site_name, e.g. amazon_in_… becomes amazon.in.</li>
+      <li>SKUs are matched across platforms by internal_company_sku. A CSV needs crawl_timestamp, product_url or site_name, selling_price and internal_company_sku (or product_name). Loaded files stay in your browser.</li>
     </ul>
   </details>
 </div>
@@ -2504,6 +2554,27 @@ const Engine = (() => {
     return { value: n, valid: true };
   }
 
+  const TLDS = new Set(['com', 'in', 'co', 'net', 'org', 'io', 'shop', 'store', 'uk', 'us', 'ae', 'sg', 'de', 'fr', 'jp', 'au', 'ca']);
+  /* Domain from a product URL: https://www.amazon.in/dp/... -> amazon.in */
+  function domainOf(u) {
+    const raw = String(u || '').trim().toLowerCase();
+    const m = /^(?:[a-z][a-z0-9+.-]*:[/][/])?([^/?#\s:]+)/.exec(raw);
+    if (!m || !m[1].includes('.')) return null;
+    let host = m[1].replace(/^(www\d?|m|mobile|dl)\./, '');
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : null;
+  }
+  /* Domain from a site name: amazon_in_tracking_data -> amazon.in, flipkart_com_x -> flipkart.com */
+  function domainFromSite(s) {
+    const raw = String(s || '').trim().toLowerCase();
+    if (!raw) return null;
+    const asUrl = domainOf(raw);
+    if (asUrl) return asUrl;
+    const parts = raw.split(/[_\s/-]+/).filter(Boolean);
+    if (!parts.length) return null;
+    const out = [parts[0]];
+    for (let i = 1; i < parts.length && TLDS.has(parts[i]) && out.length < 3; i++) out.push(parts[i]);
+    return out.join('.');
+  }
   function siteName(s) {
     const raw = String(s || '').trim();
     if (!raw) return null;
@@ -2527,7 +2598,7 @@ const Engine = (() => {
     const col = mapColumns(fields || []);
     const missing = [];
     if (!col.ts) missing.push(REQUIRED_LABEL.ts);
-    if (!col.site) missing.push(REQUIRED_LABEL.site);
+    if (!col.site && !col.url) missing.push(REQUIRED_LABEL.site + ' (or product_url)');
     if (!col.price) missing.push(REQUIRED_LABEL.price);
     if (!col.sku && !col.product) missing.push(REQUIRED_LABEL.id);
     return { col, missing };
@@ -2546,7 +2617,7 @@ const Engine = (() => {
     for (const r of records) {
       const ts = parseTs(r[col.ts]);
       if (ts == null) { stats.badTime++; continue; }
-      const site = siteName(r[col.site]);
+      const site = (col.url && domainOf(r[col.url])) || (col.site && domainFromSite(r[col.site]));
       if (!site) { stats.badSite++; continue; }
       const product = col.product ? String(r[col.product] ?? '').trim() : '';
       let sku = col.sku ? String(r[col.sku] ?? '').trim() : '';
@@ -2584,7 +2655,7 @@ const Engine = (() => {
 
   /* ---- crawl windows and per-SKU series ---- */
   function siteOrder(a, b) {
-    const rank = (s) => (s === 'Amazon' ? 0 : s === 'Flipkart' ? 1 : 2);
+    const rank = (s) => (/^amazon\./.test(s) ? 0 : /^flipkart\./.test(s) ? 1 : 2);
     return rank(a) - rank(b) || a.localeCompare(b);
   }
 
@@ -2867,7 +2938,8 @@ const Engine = (() => {
     for (const k of kids) if (k != null && k !== false) e.append(k);
     return e;
   }
-  const colorVar = (s) => (s === 'Amazon' ? 'var(--amazon)' : s === 'Flipkart' ? 'var(--flipkart)' : ['var(--p3)', 'var(--p4)', 'var(--p5)'][Math.max(0, S.index.sites.filter((x) => x !== 'Amazon' && x !== 'Flipkart').indexOf(s)) % 3]);
+  const isAmz = (s) => /^amazon\./.test(s), isFk = (s) => /^flipkart\./.test(s);
+  const colorVar = (s) => (isAmz(s) ? 'var(--amazon)' : isFk(s) ? 'var(--flipkart)' : ['var(--p3)', 'var(--p4)', 'var(--p5)'][Math.max(0, S.index.sites.filter((x) => !isAmz(x) && !isFk(x)).indexOf(s)) % 3]);
   const plat = (s) => { const d = el('span', { class: 'dot' }); d.style.background = colorVar(s); return el('span', { class: 'plat' }, d, s); };
   const tag = (cls, t) => el('span', { class: 'tag ' + cls, text: t });
 
@@ -3049,7 +3121,7 @@ const Engine = (() => {
   const inCat = (r, path) => { if (!path.length) return true; const c = catOf(r); return !!c && path.every((x, i) => c[i] === x); };
   const scoped = () => S.recs.filter((r) => inCat(r, S.cat));
   function setCat(path) { S.cat = path; S.page = 0; S.open = null; renderAll(); }
-  function renderAll() { renderSummary(); renderCats(); renderFilters(); renderSeg(); renderRows(); }
+  function renderAll() { renderSummary(); renderCats(); renderBrands(); renderResponse(); renderFilters(); renderSeg(); renderRows(); }
   function goToSkus() { S.show = scoped().some((r) => r.firstRi != null) ? 'drops' : 'all'; S.page = 0; renderSeg(); renderRows(); location.hash = '#skus'; scrollTo({ top: 0 }); }
 
   function catStats(list) {
@@ -3116,10 +3188,15 @@ const Engine = (() => {
     $('cat-empty').textContent = 'No sub-categories under ' + (S.cat[depth - 1] || 'this category') + '.';
     if (!list.length) { ['ch-cat-first', 'ch-cat-rec', 'ch-cat-share'].forEach((id) => catChart(id, null)); return; }
 
+    drawGroupCharts('cat', list, (n) => setCat([...S.cat, n]));
+  }
+
+  function drawGroupCharts(pre, list, pick) {
+    const sites = S.index.sites;
     const labels = list.map((g) => g.name);
     const h = Math.max(200, list.length * 34 + 70);
-    $('box-first').style.height = h + 'px'; $('box-rec').style.height = h + 'px';
-    const drill = (_e, els) => { if (els.length) { const n = labels[els[0].index]; setTimeout(() => setCat([...S.cat, n])); } };
+    $('box-' + pre + '-first').style.height = h + 'px'; $('box-' + pre + '-rec').style.height = h + 'px';
+    const drill = (_e, els) => { if (els.length) { const n = labels[els[0].index]; setTimeout(() => pick(n)); } };
     const hover = (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; };
     const legend = { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10, color: '#374151', font: { size: 12 } } };
     const tip = { backgroundColor: '#111827', padding: 10, cornerRadius: 6, boxPadding: 4 };
@@ -3129,7 +3206,7 @@ const Engine = (() => {
     const plural = (n) => n + ' SKU' + (n === 1 ? '' : 's');
 
     /* 1. who dropped first, stacked, with SKUs that never dropped */
-    catChart('ch-cat-first', { type: 'bar',
+    catChart('ch-' + pre + '-first', { type: 'bar',
       data: { labels, datasets: [
         ...sites.map((x) => ({ label: x + ' dropped first', data: list.map((g) => g.o.first[x] || 0), backgroundColor: cssColor(x), borderRadius: 3, maxBarThickness: 22 })),
         ...(same ? [{ label: 'Same time', data: list.map((g) => g.o.same), backgroundColor: '#64748b', borderRadius: 3, maxBarThickness: 22 }] : []),
@@ -3139,7 +3216,7 @@ const Engine = (() => {
         scales: { x: ax({ stacked: true, beginAtZero: true, title: { display: true, text: 'SKUs', color: '#6b7280' } }), y: yAx } } });
 
     /* 2. drops vs recoveries */
-    catChart('ch-cat-rec', { type: 'bar',
+    catChart('ch-' + pre + '-rec', { type: 'bar',
       data: { labels, datasets: [
         { label: 'Price drops', data: list.map((g) => g.o.drops), backgroundColor: '#16a34a', borderRadius: 3, maxBarThickness: 14 },
         { label: 'Recovered', data: list.map((g) => g.o.back), backgroundColor: '#dc2626', borderRadius: 3, maxBarThickness: 14 }] },
@@ -3150,26 +3227,222 @@ const Engine = (() => {
     /* 3. share of drops */
     const withDrops = list.filter((g) => g.o.drops);
     const total = withDrops.reduce((a, g) => a + g.o.drops, 0);
-    $('box-share').style.height = h + 'px';
-    catChart('ch-cat-share', withDrops.length ? { type: 'doughnut',
+    $('box-' + pre + '-share').style.height = h + 'px';
+    catChart('ch-' + pre + '-share', withDrops.length ? { type: 'doughnut',
       data: { labels: withDrops.map((g) => g.name), datasets: [{ data: withDrops.map((g) => g.o.drops), backgroundColor: withDrops.map((_, i) => PALETTE[i % PALETTE.length]), borderColor: '#fff', borderWidth: 2 }] },
       options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '58%',
-        onClick: (_e, els) => { if (els.length) { const n = withDrops[els[0].index].name; setTimeout(() => setCat([...S.cat, n])); } }, onHover: hover,
+        onClick: (_e, els) => { if (els.length) { const n = withDrops[els[0].index].name; setTimeout(() => pick(n)); } }, onHover: hover,
         plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10, color: '#374151', font: { size: 12 }, generateLabels: (ch) => ch.data.labels.map((l, i) => ({ text: short(l) + ' · ' + Math.round(ch.data.datasets[0].data[i] / total * 100) + '%', fillStyle: ch.data.datasets[0].backgroundColor[i], strokeStyle: '#fff', index: i, pointStyle: 'rectRounded' })) } },
           tooltip: { ...tip, callbacks: { label: (c) => c.label + ': ' + c.parsed + ' drop' + (c.parsed === 1 ? '' : 's') + ' (' + Math.round(c.parsed / total * 100) + '%)' } } } } } : null);
-    if (!withDrops.length) { const b = $('box-share'); b.querySelector('.empty')?.remove(); b.append(el('div', { class: 'empty', text: 'No price drops in this view.' })); }
-    else $('box-share').querySelector('.empty')?.remove();
+    if (!withDrops.length) { const b = $('box-' + pre + '-share'); b.querySelector('.empty')?.remove(); b.append(el('div', { class: 'empty', text: 'No price drops in this view.' })); }
+    else $('box-' + pre + '-share').querySelector('.empty')?.remove();
+    }
+
+  function renderBrands() {
+    $('tab-brands').hidden = !S.recs.some((r) => r.brand);
+    if ($('page-brands').hidden || typeof Chart === 'undefined' || !S.index) return;
+    const pool = scoped();
+    const groups = new Map();
+    for (const r of pool) { const b = r.brand || '(no brand)'; if (!groups.has(b)) groups.set(b, []); groups.get(b).push(r); }
+    let list = [...groups].map(([name, recs]) => ({ name, recs, o: catStats(recs) }))
+      .sort((a, b) => b.o.drop - a.o.drop || b.o.drops - a.o.drops || b.o.skus - a.o.skus || a.name.localeCompare(b.name));
+    const nDrop = list.filter((g) => g.o.drop).length;
+    if (S.brShow !== 'all' && !nDrop) S.brShow = 'all';
+    $('br-seg').replaceChildren(...[['drops', 'Brands with a drop', nDrop], ['all', 'All brands', list.length]].map(([k, l, c]) => {
+      const b = el('button', { type: 'button', 'aria-pressed': String((S.brShow || 'drops') === k) }, l + ' (' + c + ')');
+      b.addEventListener('click', () => { S.brShow = k; renderBrands(); });
+      return b;
+    }));
+    if ((S.brShow || 'drops') === 'drops') list = list.filter((g) => g.o.drop);
+    const where = S.cat.length ? [' in ', el('b', { text: S.cat.join(' › ') }), ' (', (() => { const x = el('button', { type: 'button', class: 'crumb', text: 'show all categories' }); x.addEventListener('click', () => setCat([])); return x; })(), ').'] : ['.'];
+    $('br-cap').replaceChildren('Brands sorted by how many of their SKUs had a price drop' , ...where, ' Click a bar or slice to see that brand’s SKUs.');
+    $('br-cards').hidden = !list.length; $('br-empty').hidden = !!list.length;
+    $('br-empty').textContent = 'No brands to show here.';
+    if (!list.length) { ['ch-br-first', 'ch-br-rec', 'ch-br-share'].forEach((id) => catChart(id, null)); return; }
+    drawGroupCharts('br', list, (name) => { S.f.brand = name === '(no brand)' ? '' : name; S.open = null; renderFilters(); goToSkus(); });
+  }
+
+
+  /* ---------- response time ---------- */
+  const BUCKETS = [
+    { key: 'same', label: 'Same crawl', hint: 'Changed in the same crawl as the drop, so the order can’t be told' },
+    { key: 'b30', label: 'Under 30 min', max: 30 },
+    { key: 'b120', label: '30 min – 2 h', max: 120 },
+    { key: 'b240', label: '2 – 4 h', max: 240 },
+    { key: 'b480', label: '4 – 8 h', max: 480 },
+    { key: 'b1440', label: '8 – 24 h', max: 1440 },
+    { key: 'b24', label: 'Over 24 h', max: Infinity },
+    { key: 'none', label: 'No change yet', hint: 'No price change by the last crawl' }
+  ];
+  S.rs = { match: 'sku', kind: 'any', bucket: null, shown: 25 };
+  const crawlGap = () => { const r = S.index.runs, d = []; for (let i = S.range[0] + 1; i <= S.range[1]; i++) d.push((r[i] - r[i - 1]) / 60000); d.sort((a, b) => a - b); return d.length ? d[Math.floor(d.length / 2)] : 0; };
+
+  function responseEvents() {
+    const pool = scoped();
+    const sites = S.index.sites;
+    const kindOk = (c) => S.rs.kind === 'any' || c.dir < 0;
+    /* "similar products" = SKUs in the same deepest category */
+    const groupKey = (r) => { const c = catOf(r); return c ? c.join(' › ') : null; };
+    const byGroup = new Map();
+    if (S.rs.match === 'cat') for (const r of pool) { const k = groupKey(r); if (!k) continue; if (!byGroup.has(k)) byGroup.set(k, []); byGroup.get(k).push(r); }
+    const out = [];
+    for (const r of pool) for (const [site, eps] of r.episodes) for (const e of eps) {
+      for (const other of sites) {
+        if (other === site) continue;
+        const peers = S.rs.match === 'cat' ? (byGroup.get(groupKey(r)) || [r]) : [r];
+        let best = null, lastTs = null, seen = false;
+        for (const pr of peers) {
+          const d = pr.perSite.get(other);
+          if (!d) continue;
+          for (const o of d.obs) if (o.ri > e.ri && o.price != null) { seen = true; if (lastTs == null || o.ts > lastTs) lastTs = o.ts; }
+          for (const c of d.changes) {
+            if (c.ri < e.ri || !kindOk(c)) continue;
+            if (!best || c.ri < best.c.ri) best = { c, r: pr };
+          }
+        }
+        if (!peers.some((pr) => pr.perSite.get(other))) continue;   /* other platform doesn't sell it */
+        const ev = { r, site, other, e, peers: peers.length };
+        if (best) {
+          ev.resp = best.c; ev.respRec = best.r;
+          ev.mins = (best.c.ts - e.ts) / 60000;
+          ev.bucket = best.c.ri === e.ri ? 'same' : BUCKETS.find((b) => b.max && ev.mins < b.max).key;
+        } else if (seen) { ev.bucket = 'none'; ev.watched = (lastTs - e.ts) / 60000; }
+        else continue;   /* never crawled again with a price: nothing to say */
+        out.push(ev);
+      }
+    }
+    return out;
+  }
+
+  function renderResponse() {
+    if ($('page-resp').hidden || typeof Chart === 'undefined' || !S.index) return;
+    const sites = S.index.sites;
+    const segBtns = (id, opts, key) => $(id).replaceChildren(...opts.map(([k, l]) => {
+      const b = el('button', { type: 'button', 'aria-pressed': String(S.rs[key] === k) }, l);
+      b.addEventListener('click', () => { S.rs[key] = k; S.rs.bucket = null; S.rs.shown = 25; renderResponse(); });
+      return b;
+    }));
+    const matchOpts = [['sku', 'Same SKU']];
+    if (S.hasCats) matchOpts.push(['cat', 'Similar products (same sub-category)']);
+    if (S.rs.match === 'cat' && !S.hasCats) S.rs.match = 'sku';
+    segBtns('rs-match', matchOpts, 'match');
+    segBtns('rs-kind', [['any', 'Any price change'], ['drop', 'A price drop only']], 'kind');
+
+    const evs = responseEvents();
+    const runs = S.index.runs;
+    const gap = crawlGap();
+    const spanMin = (runs[S.range[1]] - runs[S.range[0]]) / 60000;
+    const maxWatch = evs.reduce((m, v) => Math.max(m, v.mins ?? v.watched ?? 0), 0);
+    $('rs-cap').textContent = 'For every price drop on one platform, the time until the other platform changed the price of '
+      + (S.rs.match === 'cat' ? 'any product in the same sub-category' : 'the same SKU') + '. Times are measured crawl to crawl, every ~' + dur(gap)
+      + ', and this data covers ' + dur(spanMin) + (S.cat.length ? ', in ' + S.cat.join(' › ') : '') + '.'
+      + (S.rs.match === 'cat' ? ' With similar products, a change on any product in the group counts, so large or busy groups can look faster just by chance.' : '');
+
+    const reacted = evs.filter((v) => v.resp);
+    const later = reacted.map((v) => (v.bucket === 'same' ? 0 : v.mins)).sort((a, b) => a - b);   /* same crawl counts as 0 */
+    const med = later.length ? later[Math.floor((later.length - 1) / 2)] : null;
+    const durZ = (m) => (m === 0 ? 'Same crawl' : dur(m));
+    const within30 = reacted.filter((v) => v.bucket === 'same' || v.mins < 30).length;
+    const box = (big, label) => el('div', null, el('b', { text: big }), el('span', { text: label }));
+    $('rs-kpis').replaceChildren(
+      box(String(evs.length), 'Price drops checked'),
+      box(evs.length ? reacted.length + ' of ' + evs.length : '—', 'The other platform changed its price afterwards'),
+      box(med != null ? durZ(med) : '—', 'Median time until it changed'),
+      box(reacted.length ? Math.round(within30 / reacted.length * 100) + '%' : '—', 'Of those changes, share within 30 min'),
+      box(dur(maxWatch), 'Longest time we could watch after a drop'));
+
+    /* 1. buckets per direction */
+    const pairs = sites.flatMap((a) => sites.filter((b) => b !== a).map((b) => [a, b]));
+    const LOWER = { b30: 0, b120: 30, b240: 120, b480: 240, b1440: 480, b24: 1440 };
+    const observable = (b) => !(b.key in LOWER) || LOWER[b.key] < maxWatch;
+    const labels = BUCKETS.map((b) => b.label + (observable(b) ? '' : ' *'));
+    catChart('ch-rs-bucket', { type: 'bar',
+      data: { labels, datasets: pairs.map(([a, b]) => ({
+        label: a + ' dropped → ' + b + ' changed', data: BUCKETS.map((k) => evs.filter((v) => v.site === a && v.other === b && v.bucket === k.key).length),
+        backgroundColor: cssColor(b), borderRadius: 3, maxBarThickness: 46 })) },
+      options: { responsive: true, maintainAspectRatio: false, animation: false,
+        onClick: (_e, els) => { if (els.length) { const k = BUCKETS[els[0].index].key; setTimeout(() => { S.rs.bucket = S.rs.bucket === k ? null : k; S.rs.shown = 25; renderRsList(evs); document.getElementById('rs-list-title').scrollIntoView({ behavior: 'smooth', block: 'start' }); }); } },
+        onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10, color: '#374151', font: { size: 12 } } },
+          tooltip: { backgroundColor: '#111827', padding: 10, cornerRadius: 6, callbacks: {
+            label: (c) => c.dataset.label + ': ' + c.parsed.y + ' drop' + (c.parsed.y === 1 ? '' : 's'),
+            footer: (it) => { const b = BUCKETS[it[0].dataIndex]; return b.hint || (observable(b) ? '' : 'This data doesn’t run long enough to see reactions this slow'); } } } },
+        scales: { x: { grid: { display: false }, ticks: { color: '#374151' } }, y: { beginAtZero: true, grid: { color: '#eef0f3' }, border: { display: false }, ticks: { precision: 0, color: '#6b7280' }, title: { display: true, text: 'Price drops', color: '#6b7280' } } } } });
+    $('rs-bucket-cap').textContent = 'Each price drop, grouped by how long the other platform took to change its price. Click a bar to list those drops.'
+      + (BUCKETS.some((b) => !observable(b)) ? ' * This data only spans ' + dur(spanMin) + ', so slower reactions can’t show up yet.' : '');
+
+    /* 2. cumulative share that had reacted */
+    const steps = []; for (let m = 0; m <= Math.max(gap, maxWatch) + 0.01; m += gap || 10) steps.push(m);
+    catChart('ch-rs-cum', { type: 'line',
+      data: { labels: steps.map((m) => m ? '+' + dur(m) : 'drop'), datasets: pairs.map(([a, b]) => {
+        const list = evs.filter((v) => v.site === a && v.other === b);
+        return { label: a + ' → ' + b, data: steps.map((m) => list.length ? Math.round(list.filter((v) => v.resp && (v.bucket === 'same' || v.mins <= m + 0.5)).length / list.length * 100) : null),
+          borderColor: cssColor(b), backgroundColor: cssColor(b), stepped: true, pointRadius: 2, borderWidth: 2 };
+      }) },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, color: '#374151', font: { size: 12 } } },
+          tooltip: { backgroundColor: '#111827', padding: 10, cornerRadius: 6, callbacks: { title: (it) => it[0].label === 'drop' ? 'At the drop' : it[0].label + ' after the drop', label: (c) => c.dataset.label + ': ' + c.parsed.y + '% had changed' } } },
+        scales: { x: { grid: { display: false }, ticks: { color: '#6b7280', maxRotation: 0, autoSkip: true } }, y: { min: 0, max: 100, grid: { color: '#eef0f3' }, border: { display: false }, ticks: { color: '#6b7280', callback: (v) => v + '%' } } } } });
+
+    /* 3. advice */
+    const adv = [];
+    const p = (t, cls) => el('p', { class: cls || null }, ...[].concat(t));
+    if (!evs.length) adv.push(p('There are no price drops to measure in this view.'));
+    else {
+      const firstCrawl = reacted.filter((v) => v.bucket === 'same' || v.mins <= gap * 1.5).length;
+      if (reacted.length && reacted.length < 5) adv.push(p('Only ' + reacted.length + ' reaction' + (reacted.length === 1 ? ' was' : 's were') + ' seen, ' + (reacted.length === 1 ? 'after ' + durZ(later[0]).toLowerCase() : 'between ' + durZ(later[0]).toLowerCase() + ' and ' + dur(later[later.length - 1])) + ', which is too few to judge timing. The other platform mostly didn’t react at all within the ' + dur(maxWatch) + ' we could watch.', 'big'));
+      else if (!reacted.length) adv.push(p('The other platform didn’t change its price after any of these drops within the ' + dur(maxWatch) + ' we could watch.', 'big'));
+      else if (firstCrawl / reacted.length >= 0.5) adv.push(p(Math.round(firstCrawl / reacted.length * 100) + '% of reactions showed up at the very next crawl, so they happen faster than the current ~' + dur(gap) + ' gap can measure.', 'big'),
+        p('Keep crawling at least every ' + dur(gap) + '. To time these reactions precisely, try a few runs every ' + dur(Math.max(5, Math.round(gap / 2 / 5) * 5)) + '.'));
+      else {
+        const q1 = later[Math.floor((later.length - 1) / 4)];
+        const sug = Math.max(5, Math.min(gap * 4, Math.round(q1 / 2 / 5) * 5));
+        adv.push(p('Most reactions take longer than one crawl: half came within ' + durZ(med).toLowerCase() + ', a quarter within ' + durZ(q1).toLowerCase() + '.', 'big'),
+          p(sug > gap ? 'A crawl every ' + dur(sug) + ' would still catch most reactions, while running fewer crawls than now.' : 'Crawling every ' + dur(sug) + ' or so catches most reactions.'));
+      }
+      const unseen = evs.filter((v) => v.bucket === 'none').length;
+      if (unseen) adv.push(p(unseen + ' of ' + evs.length + ' drops had no reaction by the last crawl. The longest we could watch any drop was ' + dur(maxWatch) + '.'));
+      if (spanMin < 1440) adv.push(p('This data covers only ' + dur(spanMin) + ', so it can’t show reactions after 4, 8 or 24 hours. For those buckets, keep a slower crawl (for example every 1–2 hours) running for at least 24 hours, ideally a few days, alongside the frequent crawls.'));
+    }
+    $('rs-advice').replaceChildren(...adv);
+    renderRsList(evs);
+  }
+
+  function renderRsList(evs) {
+    const b = BUCKETS.find((x) => x.key === S.rs.bucket);
+    const list = evs.filter((v) => !b || v.bucket === b.key)
+      .sort((x, y) => (x.bucket === 'none') - (y.bucket === 'none') || (x.mins ?? 1e9) - (y.mins ?? 1e9) || x.e.ts - y.e.ts);
+    $('rs-list-title').textContent = b ? 'Drops where the reaction came: ' + b.label.toLowerCase() + ' (' + list.length + ')' : 'Every drop and the reaction (' + list.length + ')';
+    $('rs-list-clear').hidden = !b;
+    const rows = list.slice(0, S.rs.shown).map((v) => {
+      const c = v.resp;
+      const react = c
+        ? [el('div', null, plat(v.other), ' ', el('span', { class: c.dir < 0 ? 'down' : 'up', text: (c.dir < 0 ? 'dropped' : 'raised') + ' at ' + time(c.ts) })),
+           el('div', { class: 'small', text: inr(c.from) + ' → ' + inr(c.to) + ' (' + pct(c.pct) + ')' + (v.respRec !== v.r ? ' on ' + v.respRec.product.slice(0, 60) + (v.respRec.product.length > 60 ? '…' : '') : '') })]
+        : [el('div', null, plat(v.other), ' ', tag('t-na', 'No change')), el('div', { class: 'small', text: 'watched for ' + dur(v.watched) + ' after the drop' })];
+      const took = c ? (v.bucket === 'same' ? 'Same crawl' : dur(v.mins)) : '—';
+      return el('tr', null,
+        el('td', null, el('div', { class: 'prod' }, el('div', { class: 'n', text: v.r.product }), el('div', { class: 's', text: v.r.sku + (v.r.brand ? ' · ' + v.r.brand : '') }))),
+        el('td', null, el('div', null, plat(v.site), ' ', el('span', { class: 'small', text: 'at ' + time(v.e.ts) })), el('div', { class: 'small' }, inr(v.e.from) + ' → ' + inr(v.e.to) + ' ', el('span', { class: 'down', text: '(' + pct(v.e.pct) + ')' }))),
+        el('td', null, ...react),
+        el('td', null, el('b', { text: took }), el('div', { class: 'small', text: BUCKETS.find((x) => x.key === v.bucket).label })));
+    });
+    $('rs-body').replaceChildren(...(rows.length ? rows : [el('tr', null, el('td', { colspan: '4', class: 'empty', text: 'No drops here.' }))]));
+    $('rs-more-wrap').hidden = list.length <= S.rs.shown;
+    $('rs-count').textContent = 'Showing ' + Math.min(S.rs.shown, list.length) + ' of ' + list.length;
   }
 
   /* ---------- pages ---------- */
+  const pageFromHash = () => (location.hash === '#categories' && S.hasCats !== false ? 'categories' : location.hash === '#brands' ? 'brands' : location.hash === '#response' ? 'response' : 'skus');
   function showPage(name) {
-    const cats = name === 'categories' && S.hasCats !== false;
-    $('page-cats').hidden = !cats; $('page-skus').hidden = cats;
-    $('tab-skus').setAttribute('aria-current', cats ? 'false' : 'page');
-    $('tab-cats').setAttribute('aria-current', cats ? 'page' : 'false');
-    if (cats && S.index) renderCats();
+    $('page-skus').hidden = name !== 'skus'; $('page-cats').hidden = name !== 'categories'; $('page-brands').hidden = name !== 'brands'; $('page-resp').hidden = name !== 'response';
+    $('tab-skus').setAttribute('aria-current', name === 'skus' ? 'page' : 'false');
+    $('tab-cats').setAttribute('aria-current', name === 'categories' ? 'page' : 'false');
+    $('tab-brands').setAttribute('aria-current', name === 'brands' ? 'page' : 'false');
+    $('tab-resp').setAttribute('aria-current', name === 'response' ? 'page' : 'false');
+    if (S.index) { if (name === 'categories') renderCats(); if (name === 'brands') renderBrands(); if (name === 'response') renderResponse(); }
   }
-  addEventListener('hashchange', () => showPage(location.hash === '#categories' ? 'categories' : 'skus'));
+  addEventListener('hashchange', () => showPage(pageFromHash()));
 
   function renderSummary() {
     const pool = scoped();
@@ -3424,6 +3697,8 @@ const Engine = (() => {
 
   /* ---------- controls ---------- */
   $('cat-go').addEventListener('click', goToSkus);
+  $('rs-list-clear').addEventListener('click', () => { S.rs.bucket = null; S.rs.shown = 25; renderResponse(); });
+  $('rs-more').addEventListener('click', () => { S.rs.shown += 50; renderResponse(); });
   $('tl-from').addEventListener('change', (e) => setRange(+e.target.value, S.range[1]));
   $('tl-to').addEventListener('change', (e) => setRange(S.range[0], +e.target.value));
   for (const k of ['first', 'other', 'rec', 'size', 'brand']) $('f-' + k).addEventListener('change', (e) => {
@@ -3447,7 +3722,7 @@ const Engine = (() => {
   S.original = { text: $('original-csv').value.replace(/^\s+/, ''), name: ORIGINAL_NAME };
   let saved = null; try { saved = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { }
   if (!(saved && saved.text && load(saved.text, saved.name, false))) load(S.original.text, S.original.name, true);
-  showPage(location.hash === '#categories' ? 'categories' : 'skus');
+  showPage(pageFromHash());
   window.__dt = S;
 })();
 
